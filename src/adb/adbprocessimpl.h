@@ -25,6 +25,7 @@ public:
     QString getDeviceIPFromStdOut();
     QString getDeviceIPByIpFromStdOut();
     QString getStdOut();
+    QByteArray getStdOutData();
     QString getErrorOut();
 
     static const QString &getAdbPath();
@@ -38,5 +39,6 @@ private:
 private:
     QString m_standardOutput = "";
     QString m_errorOutput = "";
+    QByteArray m_standardOutputData;
     static QString s_adbPath;
 };

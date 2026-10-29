@@ -87,9 +87,14 @@ void AdbProcessImpl::initSignals()
     });
 
     connect(this, &QProcess::readyReadStandardOutput, this, [this]() {
-        QString tmp = QString::fromUtf8(readAllStandardOutput()).trimmed();
+        QByteArray data = readAllStandardOutput();
+        m_standardOutputData += data;
+        QString tmp = QString::fromUtf8(data).trimmed();
         m_standardOutput += tmp;
-        qInfo() << QString("AdbProcessImpl::out:%1").arg(tmp).toStdString().data();
+        // 截图等命令会输出二进制数据，避免把乱码刷进日志
+        if (!tmp.contains(QChar('\0'))) {
+            qInfo() << QString("AdbProcessImpl::out:%1").arg(tmp).toStdString().data();
+        }
     });
 
     connect(this, &QProcess::started, this, [this]() { emit adbProcessImplResult(qsc::AdbProcess::AER_SUCCESS_START); });
@@ -99,6 +104,7 @@ void AdbProcessImpl::execute(const QString &serial, const QStringList &args)
 {
     m_standardOutput = "";
     m_errorOutput = "";
+    m_standardOutputData.clear();
     QStringList adbArgs;
     if (!serial.isEmpty()) {
         adbArgs << "-s" << serial;
@@ -198,6 +204,11 @@ QString AdbProcessImpl::getDeviceIPByIpFromStdOut()
 QString AdbProcessImpl::getStdOut()
 {
     return m_standardOutput;
+}
+
+QByteArray AdbProcessImpl::getStdOutData()
+{
+    return m_standardOutputData;
 }
 
 QString AdbProcessImpl::getErrorOut()

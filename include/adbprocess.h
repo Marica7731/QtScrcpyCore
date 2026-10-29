@@ -1,6 +1,7 @@
 #ifndef ADBPROCESS_H
 #define ADBPROCESS_H
 
+#include <QByteArray>
 #include <QObject>
 
 class AdbProcessImpl;
@@ -41,6 +42,7 @@ public:
     QString getDeviceIPFromStdOut();
     QString getDeviceIPByIpFromStdOut();
     QString getStdOut();
+    QByteArray getStdOutData();
     QString getErrorOut();
 
 signals:

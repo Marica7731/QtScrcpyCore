@@ -1,4 +1,7 @@
+#include <QClipboard>
 #include <QDir>
+#include <QGuiApplication>
+#include <QImage>
 #include <QMessageBox>
 #include <QTimer>
 
@@ -161,10 +164,38 @@ void Device::screenshot()
         return;
     }
 
-    // screenshot
-    m_decoder->peekFrame([this](int width, int height, uint8_t* dataRGB32) {
-       saveFrame(width, height, dataRGB32);
+    // 优先通过 adb screencap 截取设备原生分辨率画面（与 adb 截图一致，无黑边）
+    qsc::AdbProcess *adb = new qsc::AdbProcess(this);
+    connect(adb, &qsc::AdbProcess::adbProcessResult, this, [this, adb](qsc::AdbProcess::ADB_EXEC_RESULT processResult) {
+        if (qsc::AdbProcess::AER_SUCCESS_START == processResult) {
+            return;
+        }
+
+        QImage image;
+        if (qsc::AdbProcess::AER_SUCCESS_EXEC == processResult) {
+            image = QImage::fromData(adb->getStdOutData(), "PNG");
+        }
+        adb->deleteLater();
+
+        if (!image.isNull()) {
+            saveScreenshotImage(image);
+            return;
+        }
+
+        // 兜底：使用解码视频帧截图（受视频流分辨率限制）
+        qWarning() << "adb screencap failed, fallback to video frame screenshot";
+        m_decoder->peekFrame([this](int width, int height, uint8_t *dataRGB32) {
+            if (!dataRGB32) {
+                return;
+            }
+            QImage rgbImage(dataRGB32, width, height, QImage::Format_RGB32);
+            saveScreenshotImage(rgbImage.copy());
+        });
     });
+
+    QStringList args;
+    args << "exec-out" << "screencap" << "-p";
+    adb->execute(getSerial(), args);
 }
 
 void Device::showTouch(bool show)
@@ -875,6 +906,37 @@ bool Device::saveFrame(int width, int height, uint8_t* dataRGB32)
     absFilePath = dir.absoluteFilePath(fileName);
     int ret = rgbImage.save(absFilePath, "PNG", 100);
     if (!ret) {
+        return false;
+    }
+
+    qInfo() << "screenshot save to " << absFilePath;
+    return true;
+}
+
+bool Device::saveScreenshotImage(const QImage &image)
+{
+    if (image.isNull()) {
+        return false;
+    }
+
+    // 复制到系统剪贴板，无论是否设置了保存路径
+    QGuiApplication::clipboard()->setImage(image);
+
+    QString fileDir(m_params.recordPath);
+    if (fileDir.isEmpty()) {
+        qWarning() << "screenshot copied to clipboard, but record save path is empty, skip saving";
+        return true;
+    }
+
+    QDateTime dateTime = QDateTime::currentDateTime();
+    QString fileName = dateTime.toString("_yyyyMMdd_hhmmss_zzz");
+    fileName = m_params.serial + fileName;
+    fileName.replace(":", "_");
+    fileName.replace(".", "_");
+    fileName += ".png";
+    QDir dir(fileDir);
+    QString absFilePath = dir.absoluteFilePath(fileName);
+    if (!image.save(absFilePath, "PNG", 100)) {
         return false;
     }
 

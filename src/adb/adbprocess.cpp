@@ -116,4 +116,9 @@ void AdbProcess::removePath(const QString &serial, const QString &path)
     m_adbImpl->removePath(serial, path);
 }
 
+QByteArray AdbProcess::getStdOutData()
+{
+    return m_adbImpl->getStdOutData();
+}
+
 }

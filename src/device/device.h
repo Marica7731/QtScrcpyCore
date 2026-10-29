@@ -11,6 +11,7 @@
 class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
+class QImage;
 class Recorder;
 class Server;
 class VideoBuffer;
@@ -85,6 +86,7 @@ public:
 private:
     void initSignals();
     bool saveFrame(int width, int height, uint8_t* dataRGB32);
+    bool saveScreenshotImage(const QImage &image);
 
 private:
     // server relevant
