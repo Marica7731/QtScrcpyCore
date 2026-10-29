@@ -184,6 +184,9 @@ void Device::screenshot()
 
         // 兜底：使用解码视频帧截图（受视频流分辨率限制）
         qWarning() << "adb screencap failed, fallback to video frame screenshot";
+        if (!m_decoder) {
+            return;
+        }
         m_decoder->peekFrame([this](int width, int height, uint8_t *dataRGB32) {
             if (!dataRGB32) {
                 return;
